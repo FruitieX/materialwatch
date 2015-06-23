@@ -1,9 +1,10 @@
-package fruitiex.iowatch;
+package fruitiex.materialwatch;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -11,6 +12,10 @@ import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.renderscript.Allocation;
+import android.renderscript.Element;
+import android.renderscript.RenderScript;
+import android.renderscript.ScriptIntrinsicBlur;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.view.Gravity;
@@ -20,14 +25,18 @@ import java.util.Calendar;
 import java.util.TimeZone;
 
 public class WatchFace extends CanvasWatchFaceService {
-    static Paint redPaint;
-    static Paint whitePaint;
+    static Paint secondPaint;
+    static Paint handsPaint;
+    static Paint ambientPaint;
+    static Paint tickPaint;
     static Paint bgPaint;
     static Paint outerPaint;
+    static Paint shadowPaint;
     static int outerOuterBgColor;
     static boolean enableTicks;
+    static boolean enableShadows;
 
-    static float thickStroke = 7.0f;
+    static float thickStroke = 6.0f;
     static float thinStroke = 2.0f;
     static float circleOffs = 24.0f;
 
@@ -42,24 +51,40 @@ public class WatchFace extends CanvasWatchFaceService {
 
     static Values val;
 
+    static Bitmap shadowBitmap = null;
+
     public static void resetColors() {
         int s = val.getColor("SecondHand");
-        int l = val.getColor("Lines");
+        int l = val.getColor("Hands");
+        int a = val.getColor("AmbientColor");
+        int t = val.getColor("Ticks");
         int i = val.getColor("InnerBG");
         int o = val.getColor("OuterBG");
         int q = val.getColor("SquareBG");
 
-        whitePaint = new Paint();
-        whitePaint.setARGB(255, Color.red(l), Color.green(l), Color.blue(l));
-        whitePaint.setStyle(Paint.Style.STROKE);
-        whitePaint.setStrokeWidth(thickStroke);
-        whitePaint.setAntiAlias(true);
+        handsPaint = new Paint();
+        handsPaint.setARGB(255, Color.red(l), Color.green(l), Color.blue(l));
+        handsPaint.setStyle(Paint.Style.STROKE);
+        handsPaint.setStrokeWidth(thickStroke);
+        handsPaint.setAntiAlias(true);
 
-        redPaint = new Paint();
-        redPaint.setARGB(255, Color.red(s), Color.green(s), Color.blue(s));
-        redPaint.setStyle(Paint.Style.STROKE);
-        redPaint.setStrokeWidth(thinStroke);
-        redPaint.setAntiAlias(true);
+        ambientPaint = new Paint();
+        ambientPaint.setARGB(255, Color.red(a), Color.green(a), Color.blue(a));
+        ambientPaint.setStyle(Paint.Style.STROKE);
+        ambientPaint.setStrokeWidth(thinStroke);
+        ambientPaint.setAntiAlias(true);
+
+        tickPaint = new Paint();
+        tickPaint.setARGB(255, Color.red(t), Color.green(t), Color.blue(t));
+        tickPaint.setStyle(Paint.Style.STROKE);
+        tickPaint.setStrokeWidth(thinStroke);
+        tickPaint.setAntiAlias(true);
+
+        secondPaint = new Paint();
+        secondPaint.setARGB(255, Color.red(s), Color.green(s), Color.blue(s));
+        secondPaint.setStyle(Paint.Style.STROKE);
+        secondPaint.setStrokeWidth(thinStroke);
+        secondPaint.setAntiAlias(true);
 
         bgPaint = new Paint();
         bgPaint.setARGB(255, Color.red(i), Color.green(i), Color.blue(i));
@@ -69,9 +94,16 @@ public class WatchFace extends CanvasWatchFaceService {
         outerPaint.setARGB(255, Color.red(o), Color.green(o), Color.blue(o));
         outerPaint.setAntiAlias(true);
 
+        shadowPaint = new Paint();
+        shadowPaint.setARGB(242, 0, 0, 0);
+        shadowPaint.setAntiAlias(true);
+
         outerOuterBgColor = Color.rgb(Color.red(q), Color.green(q), Color.blue(q));
 
         enableTicks = val.getBoolean("EnableTicks");
+        enableShadows = val.getBoolean("EnableShadows");
+
+        shadowBitmap = null;
     }
 
     @Override
@@ -129,11 +161,6 @@ public class WatchFace extends CanvasWatchFaceService {
         public void onAmbientModeChanged(boolean inAmbientMode) {
             super.onAmbientModeChanged(inAmbientMode);
 
-            if (inAmbientMode) {
-                whitePaint.setStrokeWidth(thinStroke);
-            } else {
-                whitePaint.setStrokeWidth(thickStroke);
-            }
             invalidate();
 
             updateTimer();
@@ -181,6 +208,26 @@ public class WatchFace extends CanvasWatchFaceService {
             return String.format("%02d", hour);
         }
 
+        private void drawTicks(Canvas canvas, Rect bounds, Paint paint) {
+            float centerX = bounds.width() / 2f;
+            float centerY = bounds.height() / 2f;
+
+            float innerX, innerY, outerX, outerY;
+
+            // draw the ticks/dials
+            float innerTickRadius = centerX - circleOffs - 24;
+            float outerTickRadius = centerX - circleOffs - 22;
+            for (int tickIndex = 0; tickIndex < 12; tickIndex++) {
+                float tickRot = (float) (tickIndex * Math.PI * 2 / 12);
+                innerX = (float) Math.sin(tickRot) * (innerTickRadius - (tickIndex % 3 == 0 ? 6 : 0));
+                innerY = (float) -Math.cos(tickRot) * (innerTickRadius - (tickIndex % 3 == 0 ? 6 : 0));
+                outerX = (float) Math.sin(tickRot) * outerTickRadius;
+                outerY = (float) -Math.cos(tickRot) * outerTickRadius;
+                canvas.drawLine(centerX + innerX, centerY + innerY,
+                        centerX + outerX, centerY + outerY, paint);
+            }
+        }
+
         @Override
         public void onDraw(Canvas canvas, Rect bounds) {
             canvas.drawColor(Color.BLACK);
@@ -193,8 +240,6 @@ public class WatchFace extends CanvasWatchFaceService {
             // portion.
             float centerX = width / 2f;
             float centerY = height / 2f;
-
-            float innerX, innerY, outerX, outerY;
 
             mCalendar.setTimeInMillis(System.currentTimeMillis());
 
@@ -214,39 +259,70 @@ public class WatchFace extends CanvasWatchFaceService {
             if (!isInAmbientMode()) {
                 // draw background
                 canvas.drawColor(outerOuterBgColor);
+
                 canvas.drawCircle(centerX, centerY, width / 2, outerPaint);
-                canvas.drawCircle(centerX, centerY, width / 2 - circleOffs - 20.0f, bgPaint);
+
+                if (shadowBitmap == null) {
+                    // draw shadow of inner background
+                    shadowBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                    Canvas shadowCanvas = new Canvas(shadowBitmap);
+                    shadowCanvas.drawCircle(centerX, centerY, width / 2 - circleOffs - 20.0f, shadowPaint);
+
+                    /*
+                    if (enableTicks) {
+                        drawTicks(shadowCanvas, bounds, shadowPaint);
+                    }
+                    */
+
+                    // blur shadow
+                    RenderScript rs = RenderScript.create(getApplicationContext());
+                    ScriptIntrinsicBlur script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs));
+                    Allocation inAlloc = Allocation.createFromBitmap(rs, shadowBitmap, Allocation.MipmapControl.MIPMAP_NONE, Allocation.USAGE_GRAPHICS_TEXTURE);
+                    Allocation outAlloc = Allocation.createFromBitmap(rs, shadowBitmap);
+                    script.setRadius(20);
+                    script.setInput(inAlloc);
+                    script.forEach(outAlloc);
+                    outAlloc.copyTo(shadowBitmap);
+                    rs.destroy();
+                }
+
+                if (enableShadows) {
+                    canvas.drawBitmap(shadowBitmap, 0, 6, null);
+                }
+
+                // draw inner background
+                canvas.drawCircle(centerX, centerY, width / 2 - circleOffs - 16.0f, bgPaint);
 
                 // draw second hand
                 float secX = (float) Math.sin(secRot);
                 float secY = (float) -Math.cos(secRot);
-                canvas.drawLine(centerX - secX * secOverflow, centerY - secY * secOverflow, centerX + secX * secLength, centerY + secY * secLength, redPaint);
+                canvas.drawLine(centerX - secX * secOverflow, centerY - secY * secOverflow, centerX + secX * secLength, centerY + secY * secLength, secondPaint);
+
+                float minX = (float) Math.sin(minRot);
+                float minY = (float) -Math.cos(minRot);
+                canvas.drawLine(centerX - minX * minHrOverflow, centerY - minY * minHrOverflow, centerX + minX * minLength, centerY + minY * minLength, handsPaint);
+
+                float hrX = (float) Math.sin(hrRot);
+                float hrY = (float) -Math.cos(hrRot);
+                canvas.drawLine(centerX - hrX * minHrOverflow, centerY - hrY * minHrOverflow, centerX + hrX * hrLength, centerY + hrY * hrLength, handsPaint);
+            } else {
+                // floor minute hand
+                minRot = (float) Math.floor(minutes) / 60f * TWO_PI;
+
+                float minX = (float) Math.sin(minRot);
+                float minY = (float) -Math.cos(minRot);
+                canvas.drawLine(centerX - minX * minHrOverflow, centerY - minY * minHrOverflow, centerX + minX * minLength, centerY + minY * minLength, ambientPaint);
+
+                float hrX = (float) Math.sin(hrRot);
+                float hrY = (float) -Math.cos(hrRot);
+                canvas.drawLine(centerX - hrX * minHrOverflow, centerY - hrY * minHrOverflow, centerX + hrX * hrLength, centerY + hrY * hrLength, ambientPaint);
+
+                canvas.drawCircle(centerX, centerY, width / 2 - circleOffs - 16.0f, ambientPaint);
             }
 
-            float minX = (float) Math.sin(minRot);
-            float minY = (float) -Math.cos(minRot);
-            canvas.drawLine(centerX - minX * minHrOverflow, centerY - minY * minHrOverflow, centerX + minX * minLength, centerY + minY * minLength, whitePaint);
-
-            float hrX = (float) Math.sin(hrRot);
-            float hrY = (float) -Math.cos(hrRot);
-            canvas.drawLine(centerX - hrX * minHrOverflow, centerY - hrY * minHrOverflow, centerX + hrX * hrLength, centerY + hrY * hrLength, whitePaint);
 
             if (enableTicks) {
-                // draw the ticks/dials
-                float innerTickRadius = centerX - circleOffs - 14;
-                float outerTickRadius = centerX - circleOffs - 1;
-                for (int tickIndex = 0; tickIndex < 4; tickIndex++) {
-                    float tickRot = (float) (tickIndex * Math.PI * 2 / 4);
-                    innerX = (float) Math.sin(tickRot) * innerTickRadius;
-                    innerY = (float) -Math.cos(tickRot) * innerTickRadius;
-                    outerX = (float) Math.sin(tickRot) * outerTickRadius;
-                    outerY = (float) -Math.cos(tickRot) * outerTickRadius;
-                    canvas.drawLine(centerX + innerX, centerY + innerY,
-                            centerX + outerX, centerY + outerY, whitePaint);
-                }
-
-                // draw outer circle
-                canvas.drawArc(circleOffs, circleOffs, width - circleOffs, height - circleOffs, 0, 360, false, whitePaint);
+                drawTicks(canvas, bounds, tickPaint);
             }
         }
 

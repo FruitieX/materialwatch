@@ -1,9 +1,10 @@
-package fruitiex.iowatch;
+package fruitiex.materialwatch;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Color;
+import android.util.Log;
 
 /**
  * Created by rasse on 4/23/15.
@@ -25,6 +26,8 @@ public class Values {
     }
     public void setColor(String element, int color) {
         SharedPreferences.Editor editor = sharedPref.edit();
+
+        Log.d("materialwatch", "setting " + element + " color: " + Color.red(color) + ", " + Color.green(color) + ", " + Color.blue(color));
 
         editor.putInt(element + "R", Color.red(color));
         editor.putInt(element + "G", Color.green(color));

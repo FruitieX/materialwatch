@@ -1,4 +1,4 @@
-package fruitiex.iowatch;
+package fruitiex.materialwatch;
 
 import android.content.Context;
 import android.support.wearable.view.WearableListView;

@@ -6,11 +6,11 @@ android {
     buildToolsVersion "22.0.0"
 
     defaultConfig {
-        applicationId "fruitiex.iowatch"
+        applicationId "fruitiex.materialwatch"
         minSdkVersion 21
         targetSdkVersion 22
-        versionCode 4
-        versionName "1.3"
+        versionCode 1
+        versionName "1.0"
     }
     buildTypes {
         release {

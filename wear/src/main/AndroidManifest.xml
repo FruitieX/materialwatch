@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="fruitiex.iowatch" >
+    package="fruitiex.materialwatch" >
 
     <uses-feature android:name="android.hardware.type.watch" />
 
@@ -13,7 +13,7 @@
         android:label="@string/app_name">
 
         <service
-            android:name="fruitiex.iowatch.WatchFace"
+            android:name="fruitiex.materialwatch.WatchFace"
             android:label="@string/app_name"
             android:allowEmbedded="true"
             android:taskAffinity=""
@@ -37,7 +37,7 @@
             </intent-filter>
         </service>
         <activity
-            android:name=".WatchFaceConfig"
+            android:name="fruitiex.materialwatch.WatchFaceConfig"
             android:label="@string/config_name">
             <intent-filter>
                 <action android:name=

@@ -1,4 +1,4 @@
-package fruitiex.iowatch;
+package fruitiex.materialwatch;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -9,7 +9,7 @@ import org.jraf.android.androidwearcolorpicker.app.ColorPickActivity;
 
 public class WatchFaceConfig extends Activity implements WearableListView.ClickListener, WearableListView.OnScrollListener {
 
-    public static String[] elements = { "Lines", "SecondHand", "InnerBG", "OuterBG", "SquareBG", "EnableTicks", "ResetSettings" };
+    public static String[] elements = { "Hands", "Ticks", "SecondHand", "AmbientColor", "InnerBG", "OuterBG", "SquareBG", "EnableTicks", "EnableShadows", "ResetSettings" };
     static Values val;
 
     @Override
@@ -36,14 +36,12 @@ public class WatchFaceConfig extends Activity implements WearableListView.ClickL
         Integer tag = (Integer) v.itemView.getTag();
         if (elements[tag].equals("EnableTicks")) {
             val.setBoolean("EnableTicks", !val.getBoolean("EnableTicks"));
-            WearableListView listView =
-                    (WearableListView) findViewById(R.id.wearable_list);
-            listView.getAdapter().notifyDataSetChanged();
+            finish();
+        } else if (elements[tag].equals("EnableShadows")) {
+            val.setBoolean("EnableShadows", !val.getBoolean("EnableShadows"));
+            finish();
         } else if (elements[tag].equals("ResetSettings")) {
             val.resetValues();
-            WearableListView listView =
-                (WearableListView) findViewById(R.id.wearable_list);
-            listView.getAdapter().notifyDataSetChanged();
             finish();
         } else {
             Intent intent = new ColorPickActivity.IntentBuilder().oldColor(val.getColor(elements[tag])).build(this);

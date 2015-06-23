@@ -6,7 +6,7 @@
     android:layout_width="match_parent" android:layout_height="match_parent"
     app:rectLayout="@layout/rect_activity_watch_face_config"
     app:roundLayout="@layout/round_activity_watch_face_config"
-    tools:context="fruitiex.iowatch.WatchFaceConfig"
+    tools:context="WatchFaceConfig"
     tools:deviceIds="wear"></android.support.wearable.view.WatchViewStub-->
 <android.support.wearable.view.BoxInsetLayout
 xmlns:android="http://schemas.android.com/apk/res/android"

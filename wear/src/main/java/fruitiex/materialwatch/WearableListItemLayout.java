@@ -1,4 +1,4 @@
-package fruitiex.iowatch;
+package fruitiex.materialwatch;
 
 import android.content.Context;
 import android.graphics.Color;
@@ -51,6 +51,9 @@ public class WearableListItemLayout extends LinearLayout
         if (mName.getText().equals("EnableTicks")) {
             boolean enabled = val.getBoolean("EnableTicks");
             ((GradientDrawable) mCircle.getDrawable()).setColor(enabled ? Color.WHITE : Color.BLACK);
+        } else if (mName.getText().equals("EnableShadows")) {
+            boolean enabled = val.getBoolean("EnableShadows");
+            ((GradientDrawable) mCircle.getDrawable()).setColor(enabled ? Color.WHITE : Color.BLACK);
         } else if (mName.getText().equals("ResetSettings")) {
             ((GradientDrawable) mCircle.getDrawable()).setColor(Color.RED);
         } else {
@@ -63,6 +66,9 @@ public class WearableListItemLayout extends LinearLayout
     public void onNonCenterPosition(boolean animate) {
         if (mName.getText().equals("EnableTicks")) {
             boolean enabled = val.getBoolean("EnableTicks");
+            ((GradientDrawable) mCircle.getDrawable()).setColor(enabled ? Color.WHITE : Color.BLACK);
+        } else if (mName.getText().equals("EnableShadows")) {
+            boolean enabled = val.getBoolean("EnableShadows");
             ((GradientDrawable) mCircle.getDrawable()).setColor(enabled ? Color.WHITE : Color.BLACK);
         } else if (mName.getText().equals("ResetSettings")) {
             ((GradientDrawable) mCircle.getDrawable()).setColor(Color.RED);

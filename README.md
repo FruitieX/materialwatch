@@ -1,5 +1,5 @@
-iowatch
-=======
+materialwatch
+=============
 
 ![Screenshot](watchface_rd.png)
 
