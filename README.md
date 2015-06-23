@@ -3,8 +3,6 @@ materialwatch
 
 ![Screenshot](watchface_rd.png)
 
-Minimalistic Android Wear watchface inspired by a Google I/O talk.
-
-http://i.imgur.com/ELY80tT.png
+Material Design inspired watch face for Android Wear
 
 Suggestions and feature requests are welcome!
