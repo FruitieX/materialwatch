@@ -32,6 +32,8 @@ public class WatchFace extends CanvasWatchFaceService {
     static Paint bgPaint;
     static Paint outerPaint;
     static Paint shadowPaint;
+    static Paint shadowThickPaint;
+    static Paint shadowThinPaint;
     static int outerOuterBgColor;
     static boolean enableTicks;
     static boolean enableShadows;
@@ -51,7 +53,10 @@ public class WatchFace extends CanvasWatchFaceService {
 
     static Values val;
 
-    static Bitmap shadowBitmap = null;
+    static Bitmap shadowBgBitmap = null;
+    float shadowFaceRot = 0.0f;
+    static Bitmap shadowFaceBitmap = null;
+    static Bitmap shadowTickBitmap = null;
 
     public static void resetColors() {
         int s = val.getColor("SecondHand");
@@ -98,12 +103,26 @@ public class WatchFace extends CanvasWatchFaceService {
         shadowPaint.setARGB(242, 0, 0, 0);
         shadowPaint.setAntiAlias(true);
 
+        shadowThickPaint = new Paint();
+        shadowThickPaint.setARGB(64, 0, 0, 0);
+        shadowThickPaint.setAntiAlias(true);
+        shadowThickPaint.setStyle(Paint.Style.STROKE);
+        shadowThickPaint.setStrokeWidth(thickStroke);
+
+        shadowThinPaint = new Paint();
+        shadowThinPaint.setARGB(64, 0, 0, 0);
+        shadowThinPaint.setAntiAlias(true);
+        shadowThinPaint.setStyle(Paint.Style.STROKE);
+        shadowThinPaint.setStrokeWidth(thinStroke);
+
         outerOuterBgColor = Color.rgb(Color.red(q), Color.green(q), Color.blue(q));
 
         enableTicks = val.getBoolean("EnableTicks");
         enableShadows = val.getBoolean("EnableShadows");
 
-        shadowBitmap = null;
+        shadowBgBitmap = null;
+        shadowFaceBitmap = null;
+        shadowTickBitmap = null;
     }
 
     @Override
@@ -117,7 +136,6 @@ public class WatchFace extends CanvasWatchFaceService {
         Calendar mCalendar;
         static final float TWO_PI = (float) Math.PI * 2f;
 
-                /** Handler to update the time once a second in interactive mode. */
         final Handler mUpdateTimeHandler = new Handler() {
             @Override
             public void handleMessage(Message message) {
@@ -228,6 +246,20 @@ public class WatchFace extends CanvasWatchFaceService {
             }
         }
 
+        private void drawShadow(Bitmap bitmap, Integer radius) {
+            // blur shadow
+            RenderScript rs = RenderScript.create(getApplicationContext());
+            ScriptIntrinsicBlur script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs));
+            Allocation inAlloc = Allocation.createFromBitmap(rs, bitmap, Allocation.MipmapControl.MIPMAP_NONE, Allocation.USAGE_GRAPHICS_TEXTURE);
+            Allocation outAlloc = Allocation.createFromBitmap(rs, bitmap);
+            script.setRadius(radius);
+            script.setInput(inAlloc);
+            script.forEach(outAlloc);
+            outAlloc.copyTo(bitmap);
+
+            rs.destroy();
+        }
+
         @Override
         public void onDraw(Canvas canvas, Rect bounds) {
             canvas.drawColor(Color.BLACK);
@@ -248,7 +280,7 @@ public class WatchFace extends CanvasWatchFaceService {
                     mCalendar.get(Calendar.SECOND) + mCalendar.get(Calendar.MILLISECOND) / 1000f;
             float secRot = seconds / 60f * TWO_PI;
             float minutes = mCalendar.get(Calendar.MINUTE) + seconds / 60f;
-            float minRot = minutes / 60f * TWO_PI;
+            float minRot = (float) Math.floor(minutes) / 60f * TWO_PI; // froor minute hand
             float hours = mCalendar.get(Calendar.HOUR) + minutes / 60f;
             float hrRot = hours / 12f * TWO_PI;
 
@@ -256,73 +288,97 @@ public class WatchFace extends CanvasWatchFaceService {
             float minLength = centerX - 65;
             float hrLength = centerX - 95;
 
+            float minX = (float) Math.sin(minRot);
+            float minY = (float) -Math.cos(minRot);
+
+            float hrX = (float) Math.sin(hrRot);
+            float hrY = (float) -Math.cos(hrRot);
+
+            float secX = (float) Math.sin(secRot);
+            float secY = (float) -Math.cos(secRot);
+
             if (!isInAmbientMode()) {
+                // calculate shadows
+                if (enableShadows) {
+                    // inner background
+                    if (shadowBgBitmap == null) {
+                        shadowBgBitmap = Bitmap.createBitmap(bounds.width(), bounds.height(), Bitmap.Config.ARGB_8888);
+                        Canvas shadowCanvas = new Canvas(shadowBgBitmap);
+                        shadowCanvas.drawCircle(centerX, centerY, width / 2 - circleOffs - 20.0f, shadowPaint);
+
+                        drawShadow(shadowBgBitmap, 20);
+                    }
+
+                    // ticks
+                    if (shadowTickBitmap == null) {
+                        shadowTickBitmap = Bitmap.createBitmap(bounds.width(), bounds.height(), Bitmap.Config.ARGB_8888);
+                        Canvas shadowTickCanvas = new Canvas(shadowTickBitmap);
+
+                        drawTicks(shadowTickCanvas, bounds, shadowThinPaint);
+
+                        drawShadow(shadowTickBitmap, 3);
+                    }
+
+                    // watch hands
+                    /*
+                    if (shadowFaceBitmap == null || shadowFaceRot != hrRot) {
+                        shadowFaceRot = hrRot;
+                        shadowFaceBitmap = Bitmap.createBitmap(bounds.width(), bounds.height(), Bitmap.Config.ARGB_8888);
+                        Canvas shadowFaceCanvas = new Canvas(shadowFaceBitmap);
+
+                        // clock hands
+                        shadowFaceCanvas.drawLine(centerX - minX * minHrOverflow, centerY - minY * minHrOverflow, centerX + minX * minLength, centerY + minY * minLength, shadowThickPaint);
+                        shadowFaceCanvas.drawLine(centerX - hrX * minHrOverflow, centerY - hrY * minHrOverflow, centerX + hrX * hrLength, centerY + hrY * hrLength, shadowThickPaint);
+
+                        drawShadow(shadowFaceBitmap, 8);
+                    }
+                    */
+                }
+
                 // draw background
                 canvas.drawColor(outerOuterBgColor);
 
+                // draw outer background
                 canvas.drawCircle(centerX, centerY, width / 2, outerPaint);
 
-                if (shadowBitmap == null) {
-                    // draw shadow of inner background
-                    shadowBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                    Canvas shadowCanvas = new Canvas(shadowBitmap);
-                    shadowCanvas.drawCircle(centerX, centerY, width / 2 - circleOffs - 20.0f, shadowPaint);
-
-                    /*
-                    if (enableTicks) {
-                        drawTicks(shadowCanvas, bounds, shadowPaint);
-                    }
-                    */
-
-                    // blur shadow
-                    RenderScript rs = RenderScript.create(getApplicationContext());
-                    ScriptIntrinsicBlur script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs));
-                    Allocation inAlloc = Allocation.createFromBitmap(rs, shadowBitmap, Allocation.MipmapControl.MIPMAP_NONE, Allocation.USAGE_GRAPHICS_TEXTURE);
-                    Allocation outAlloc = Allocation.createFromBitmap(rs, shadowBitmap);
-                    script.setRadius(20);
-                    script.setInput(inAlloc);
-                    script.forEach(outAlloc);
-                    outAlloc.copyTo(shadowBitmap);
-                    rs.destroy();
-                }
-
+                // draw inner background shadows
                 if (enableShadows) {
-                    canvas.drawBitmap(shadowBitmap, 0, 6, null);
+                    canvas.drawBitmap(shadowBgBitmap, 0, 6, null);
                 }
 
                 // draw inner background
                 canvas.drawCircle(centerX, centerY, width / 2 - circleOffs - 16.0f, bgPaint);
 
-                // draw second hand
-                float secX = (float) Math.sin(secRot);
-                float secY = (float) -Math.cos(secRot);
-                canvas.drawLine(centerX - secX * secOverflow, centerY - secY * secOverflow, centerX + secX * secLength, centerY + secY * secLength, secondPaint);
+                // draw shadows of ticks
+                if (enableShadows && enableTicks) {
+                    canvas.drawBitmap(shadowTickBitmap, 0, 2, null);
+                }
 
-                float minX = (float) Math.sin(minRot);
-                float minY = (float) -Math.cos(minRot);
+                // draw shadows of clock hands
+                if (enableShadows) {
+                    //canvas.drawBitmap(shadowFaceBitmap, 0, 4, null);
+                    canvas.drawLine(centerX - minX * minHrOverflow, centerY - minY * minHrOverflow + 3, centerX + minX * minLength, centerY + minY * minLength + 3, shadowThickPaint);
+                    canvas.drawLine(centerX - hrX * minHrOverflow, centerY - hrY * minHrOverflow + 3, centerX + hrX * hrLength, centerY + hrY * hrLength + 3, shadowThickPaint);
+                    canvas.drawLine(centerX - secX * secOverflow, centerY - secY * secOverflow + 4, centerX + secX * secLength, centerY + secY * secLength + 4, shadowThinPaint);
+                }
+
+                if (enableTicks) {
+                    drawTicks(canvas, bounds, tickPaint);
+                }
+
+                // draw clock hands
                 canvas.drawLine(centerX - minX * minHrOverflow, centerY - minY * minHrOverflow, centerX + minX * minLength, centerY + minY * minLength, handsPaint);
-
-                float hrX = (float) Math.sin(hrRot);
-                float hrY = (float) -Math.cos(hrRot);
                 canvas.drawLine(centerX - hrX * minHrOverflow, centerY - hrY * minHrOverflow, centerX + hrX * hrLength, centerY + hrY * hrLength, handsPaint);
+
+                // draw second hand
+                canvas.drawLine(centerX - secX * secOverflow, centerY - secY * secOverflow, centerX + secX * secLength, centerY + secY * secLength, secondPaint);// draw ticks
             } else {
-                // floor minute hand
-                minRot = (float) Math.floor(minutes) / 60f * TWO_PI;
-
-                float minX = (float) Math.sin(minRot);
-                float minY = (float) -Math.cos(minRot);
-                canvas.drawLine(centerX - minX * minHrOverflow, centerY - minY * minHrOverflow, centerX + minX * minLength, centerY + minY * minLength, ambientPaint);
-
-                float hrX = (float) Math.sin(hrRot);
-                float hrY = (float) -Math.cos(hrRot);
-                canvas.drawLine(centerX - hrX * minHrOverflow, centerY - hrY * minHrOverflow, centerX + hrX * hrLength, centerY + hrY * hrLength, ambientPaint);
-
+                // draw outline of inner circle background
                 canvas.drawCircle(centerX, centerY, width / 2 - circleOffs - 16.0f, ambientPaint);
-            }
 
-
-            if (enableTicks) {
-                drawTicks(canvas, bounds, tickPaint);
+                // draw clock hands
+                canvas.drawLine(centerX - minX * minHrOverflow, centerY - minY * minHrOverflow, centerX + minX * minLength, centerY + minY * minLength, ambientPaint);
+                canvas.drawLine(centerX - hrX * minHrOverflow, centerY - hrY * minHrOverflow, centerX + hrX * hrLength, centerY + hrY * hrLength, ambientPaint);
             }
         }
 

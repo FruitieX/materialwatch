@@ -71,7 +71,7 @@ public class WearableListItemLayout extends LinearLayout
             boolean enabled = val.getBoolean("EnableShadows");
             ((GradientDrawable) mCircle.getDrawable()).setColor(enabled ? Color.WHITE : Color.BLACK);
         } else if (mName.getText().equals("ResetSettings")) {
-            ((GradientDrawable) mCircle.getDrawable()).setColor(Color.RED);
+            ((GradientDrawable) mCircle.getDrawable()).setColor(Color.BLACK);
         } else {
             ((GradientDrawable) mCircle.getDrawable()).setColor(val.getColor((String) mName.getText()));
         }
