@@ -1,2 +1,11 @@
 .gradle
+/gradle
+/gradlew
+/gradlew.bat
 build
+.DS_Store
+/.idea/libraries
+/.idea/workspace.xml
+/local.properties
+/mobile/manifest-merger-release-report.txt
+*.apk
