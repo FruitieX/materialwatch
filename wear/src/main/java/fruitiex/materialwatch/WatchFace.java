@@ -34,6 +34,8 @@ public class WatchFace extends CanvasWatchFaceService {
     static Paint shadowPaint;
     static Paint shadowThickPaint;
     static Paint shadowThinPaint;
+    static Paint middlePaint;
+
     static int outerOuterBgColor;
     static boolean enableTicks;
     static boolean enableShadows;
@@ -43,7 +45,7 @@ public class WatchFace extends CanvasWatchFaceService {
     static float circleOffs = 24.0f;
 
     static float minHrOverflow = 10.0f;
-    static float secOverflow = 16.0f;
+    static float secOverflow = 0.0f;
 
     // device screen details
     boolean mLowBitAmbient;
@@ -114,6 +116,10 @@ public class WatchFace extends CanvasWatchFaceService {
         shadowThinPaint.setAntiAlias(true);
         shadowThinPaint.setStyle(Paint.Style.STROKE);
         shadowThinPaint.setStrokeWidth(thinStroke);
+
+        middlePaint = new Paint();
+        middlePaint.setARGB(255, Color.red(s), Color.green(s), Color.blue(s));
+        middlePaint.setAntiAlias(true);
 
         outerOuterBgColor = Color.rgb(Color.red(q), Color.green(q), Color.blue(q));
 
@@ -226,7 +232,7 @@ public class WatchFace extends CanvasWatchFaceService {
             return String.format("%02d", hour);
         }
 
-        private void drawTicks(Canvas canvas, Rect bounds, Paint paint) {
+        private void drawTicks(Canvas canvas, Rect bounds, float offsetY, Paint paint) {
             float centerX = bounds.width() / 2f;
             float centerY = bounds.height() / 2f;
 
@@ -241,8 +247,8 @@ public class WatchFace extends CanvasWatchFaceService {
                 innerY = (float) -Math.cos(tickRot) * (innerTickRadius - (tickIndex % 3 == 0 ? 6 : 0));
                 outerX = (float) Math.sin(tickRot) * outerTickRadius;
                 outerY = (float) -Math.cos(tickRot) * outerTickRadius;
-                canvas.drawLine(centerX + innerX, centerY + innerY,
-                        centerX + outerX, centerY + outerY, paint);
+                canvas.drawLine(centerX + innerX, centerY + innerY + offsetY,
+                        centerX + outerX, centerY + outerY + offsetY, paint);
             }
         }
 
@@ -311,12 +317,12 @@ public class WatchFace extends CanvasWatchFaceService {
 
                     // ticks
                     if (shadowTickBitmap == null) {
-                        shadowTickBitmap = Bitmap.createBitmap(bounds.width(), bounds.height(), Bitmap.Config.ARGB_8888);
-                        Canvas shadowTickCanvas = new Canvas(shadowTickBitmap);
+                        //shadowTickBitmap = Bitmap.createBitmap(bounds.width(), bounds.height(), Bitmap.Config.ARGB_8888);
+                        //Canvas shadowTickCanvas = new Canvas(shadowTickBitmap);
 
-                        drawTicks(shadowTickCanvas, bounds, shadowThinPaint);
 
-                        drawShadow(shadowTickBitmap, 3);
+
+                        //drawShadow(shadowTickBitmap, 3);
                     }
 
                     // watch hands
@@ -351,19 +357,20 @@ public class WatchFace extends CanvasWatchFaceService {
 
                 // draw shadows of ticks
                 if (enableShadows && enableTicks) {
-                    canvas.drawBitmap(shadowTickBitmap, 0, 2, null);
+                    //canvas.drawBitmap(shadowTickBitmap, 0, 2, null);
+                    drawTicks(canvas, bounds, 2, shadowThinPaint);
                 }
 
                 // draw shadows of clock hands
                 if (enableShadows) {
                     //canvas.drawBitmap(shadowFaceBitmap, 0, 4, null);
-                    canvas.drawLine(centerX - minX * minHrOverflow, centerY - minY * minHrOverflow + 3, centerX + minX * minLength, centerY + minY * minLength + 3, shadowThickPaint);
-                    canvas.drawLine(centerX - hrX * minHrOverflow, centerY - hrY * minHrOverflow + 3, centerX + hrX * hrLength, centerY + hrY * hrLength + 3, shadowThickPaint);
-                    canvas.drawLine(centerX - secX * secOverflow, centerY - secY * secOverflow + 4, centerX + secX * secLength, centerY + secY * secLength + 4, shadowThinPaint);
+                    canvas.drawLine(centerX - minX * minHrOverflow, centerY - minY * minHrOverflow + 2, centerX + minX * minLength, centerY + minY * minLength + 2, shadowThickPaint);
+                    canvas.drawLine(centerX - hrX * minHrOverflow, centerY - hrY * minHrOverflow + 2, centerX + hrX * hrLength, centerY + hrY * hrLength + 2, shadowThickPaint);
+                    canvas.drawLine(centerX - secX * secOverflow, centerY - secY * secOverflow + 3, centerX + secX * secLength, centerY + secY * secLength + 3, shadowThinPaint);
                 }
 
                 if (enableTicks) {
-                    drawTicks(canvas, bounds, tickPaint);
+                    drawTicks(canvas, bounds, 0, tickPaint);
                 }
 
                 // draw clock hands
@@ -372,6 +379,8 @@ public class WatchFace extends CanvasWatchFaceService {
 
                 // draw second hand
                 canvas.drawLine(centerX - secX * secOverflow, centerY - secY * secOverflow, centerX + secX * secLength, centerY + secY * secLength, secondPaint);// draw ticks
+
+                canvas.drawCircle(centerX, centerY, 2.5f, middlePaint);
             } else {
                 // draw outline of inner circle background
                 canvas.drawCircle(centerX, centerY, width / 2 - circleOffs - 16.0f, ambientPaint);
